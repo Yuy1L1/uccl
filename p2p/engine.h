@@ -27,17 +27,17 @@
 #include <vector>
 
 #ifdef USE_DIETGPU
-#if defined(__HIP_PLATFORM_AMD__) || defined(__HIP_PLATFORM_NVIDIA__)
-  #include <hip/hip_runtime.h>
-  #include <hip/hip_fp16.h>
-  #include "dietgpu/float/GpuFloatCodec_hip.h"
-  #include "dietgpu/utils/StackDeviceMemory_hip.h"
-#else
-  #include <cuda_runtime.h>
-  #include <cuda_fp16.h>
-  #include "dietgpu/float/GpuFloatCodec_cuda.h"
-  #include "dietgpu/utils/StackDeviceMemory_cuda.h"
-#endif
+  #if defined(__HIP_PLATFORM_AMD__) || defined(__HIP_PLATFORM_NVIDIA__)
+    #include <hip/hip_runtime.h>
+    #include <hip/hip_fp16.h>
+    #include "dietgpu/float/GpuFloatCodec_hip.h"
+    #include "dietgpu/utils/StackDeviceMemory_hip.h"
+  #else
+    #include <cuda_runtime.h>
+    #include <cuda_fp16.h>
+    #include "dietgpu/float/GpuFloatCodec.h"
+    #include "dietgpu/utils/StackDeviceMemory.h"
+  #endif
 #endif
 
 namespace py = pybind11;

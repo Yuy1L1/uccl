@@ -4,6 +4,8 @@
 USE_TCPX ?= $(shell echo $${USE_TCPX:-0})
 # EFA optional integration
 USE_EFA ?= $(shell echo $${USE_EFA:-0})
+# DietGPU optional integration
+USE_DIETGPU ?= $(shell echo $${USE_DIETGPU:-0})
 
 # Compiler and flags
 CUDA_HOME ?= /usr/local/cuda
@@ -11,15 +13,32 @@ CUDA_INC  := $(CUDA_HOME)/include
 CUDA_LIB  := $(CUDA_HOME)/lib64
 EFA_HOME ?= /opt/amazon/efa
 
+# DietGPU integration
+DIETGPU_ROOT      := ../thirdparty/dietgpu
+DIETGPU_INC       :=
+DIETGPU_LIBS      :=
+DIETGPU_LIB_DEP   :=
+
+ifeq ($(USE_DIETGPU),1)
+	DIETGPU_INC  := -I$(DIETGPU_ROOT)
+	DIETGPU_LIBS := -L$(DIETGPU_ROOT) -ldietgpu \
+	                -Wl,-rpath,$(abspath $(DIETGPU_ROOT))
+	DIETGPU_LIB_DEP := $(DIETGPU_ROOT)/libdietgpu.so
+	DIETGPU_CXXFLAGS := -DUSE_DIETGPU
+else
+	DIETGPU_CXXFLAGS :=
+endif
+
 # Building with the following settings:
-INC = -I./ -I$(CUDA_HOME)/include
-LIBS = -L ${CUDA_HOME}/lib64 -libverbs -lcudart -lcuda -lpthread -lglog -lgflags -lgtest -lz -lelf
+INC = -I./ -I$(CUDA_HOME)/include $(DIETGPU_INC)
+LIBS = -L ${CUDA_HOME}/lib64 -libverbs -lcudart -lcuda -lpthread -lglog -lgflags -lz -lelf $(DIETGPU_LIBS)
 LIBS2 =
 
 CXX := g++
 CXXFLAGS := -O3 -shared -std=c++17 -fPIC -I. -I./include -I../include -I$(CUDA_INC) \
 	-Wno-pointer-arith -Wno-sign-compare -Wno-unused-variable \
-	-Wl,-rpath=/usr/lib/x86_64-linux-gnu
+	-Wl,-rpath=/usr/lib/x86_64-linux-gnu \
+	$(DIETGPU_CXXFLAGS) $(DIETGPU_INC)
 
 ifeq ($(USE_TCPX),1)
 	CXXFLAGS += -DUCCL_P2P_USE_TCPX
@@ -29,7 +48,7 @@ else ifeq ($(USE_EFA),1)
 	INC += -I${EFA_HOME}/include
 	LIBS += -L ${EFA_HOME}/lib -lefa
 else
-	LIBS2 += -lglog -lgflags -lgtest -lz -lelf -lpthread -libverbs
+	LIBS2 += -lglog -lgflags -lz -lelf -lpthread -libverbs
 endif
 
 # Python and pybind11 configuration
@@ -86,13 +105,13 @@ else
 # Default target
 all: $(P2P_PYTHON_EXT) $(P2P_SHARED_LIB)
 
-$(P2P_PYTHON_EXT): $(OBJECTS) $(DIETGPU_LIB)
+$(P2P_PYTHON_EXT): $(OBJECTS) $(DIETGPU_LIB_DEP)
 	$(CXX) $(OBJECTS) \
 	      -L$(CUDA_LIB) -lcudart -lcuda \
 	      -o $@ $(LDFLAGS) $(PYTHON_LDFLAGS) $(CXXFLAGS) \
 	      -Wl,-rpath,$(CUDA_LIB) $(INC) $(LIBS)
 
-$(P2P_SHARED_LIB): $(CAPI_OBJECT) $(CORE_OBJECT) $(DIETGPU_LIB)
+$(P2P_SHARED_LIB): $(CAPI_OBJECT) $(CORE_OBJECT) $(DIETGPU_LIB_DEP)
 	$(CXX) $(CAPI_OBJECT) $(CORE_OBJECT) \
 	      -L$(CUDA_LIB) -lcudart -lcuda \
 	      -o $@ $(LDFLAGS) $(PYTHON_LDFLAGS) $(CXXFLAGS) \
